@@ -6,9 +6,9 @@ import { ConfigService } from '@nestjs/config';
 export class EnvConfigService implements EnvConfig {
     constructor(private confiservice: ConfigService) {}
     getAppPort(): number {
-        return Number(this.confiservice.get<number>('PORT'))
+        return Number(this.confiservice.get<number>('PORT'));
     }
     getNodeEnv(): string {
-        return (this.confiservice.get<string>('NODE_ENV'))
+        return this.confiservice.get<string>('NODE_ENV');
     }
 }
