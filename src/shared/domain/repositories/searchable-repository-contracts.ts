@@ -19,12 +19,12 @@ export type SearchResultProps<E extends Entity, Filter> = {
     filter: Filter | null
   }
 
-export class SearchParams {
+export class SearchParams <Filter = string> {
   protected _page: number
   protected _perPage = 15
   protected _sort: string | null
   protected _sortDir: SortDirection | null
-  protected _filter: string | null
+  protected _filter: Filter | null
   constructor(props: SearchProps = {}) {
     this.page = props.page
     this.perPage = props.perPage
