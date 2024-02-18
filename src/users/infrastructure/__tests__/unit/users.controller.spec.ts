@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing'
 import { UsersController } from '../../users.controller'
 import { UserOutput } from '@/users/application/dtos/user-output'
 import { SignupUseCase } from '@/users/application/usecases/signup.usecase'
@@ -7,16 +6,16 @@ import { SigninUseCase } from '@/users/application/usecases/signin.usecase'
 import { SigninDto } from '../../dtos/signin.dto'
 import { UpdateUserUseCase } from '@/users/application/usecases/update-user.usecase'
 import { UpdateUserDto } from '../../dtos/update-user.dto'
-import { UpdatePasswordDto } from '../../dtos/update-password.dto'
 import { UpdatePasswordUseCase } from '@/users/application/usecases/update-password.usecase'
+import { UpdatePasswordDto } from '../../dtos/update-password.dto'
 import { GetUserUseCase } from '@/users/application/usecases/getuser.usecase'
 import { ListUsersUseCase } from '@/users/application/usecases/listusers.usecase'
+import { UserPresenter } from '../../presenters/user.presenter'
 
 describe('UsersController unit tests', () => {
   let sut: UsersController
   let id: string
   let props: UserOutput
-
   beforeEach(async () => {
     sut = new UsersController()
     id = 'df96ae94-6128-486e-840c-b6f78abb4801'
@@ -28,11 +27,9 @@ describe('UsersController unit tests', () => {
       createdAt: new Date(),
     }
   })
-
   it('should be defined', () => {
     expect(sut).toBeDefined()
   })
-
   it('should create a user', async () => {
     const output: SignupUseCase.Output = props
     const mockSignupUseCase = {
@@ -44,8 +41,9 @@ describe('UsersController unit tests', () => {
       email: 'a@a.com',
       password: '1234',
     }
-    const result = await sut.create(input)
-    expect(output).toMatchObject(result)
+    const presenter = await sut.create(input)
+    expect(presenter).toBeInstanceOf(UserPresenter)
+    expect(presenter).toStrictEqual(new UserPresenter(output))
     expect(mockSignupUseCase.execute).toHaveBeenCalledWith(input)
   })
 
@@ -59,8 +57,9 @@ describe('UsersController unit tests', () => {
       email: 'a@a.com',
       password: '1234',
     }
-    const result = await sut.login(input)
-    expect(output).toMatchObject(result)
+    const presenter = await sut.login(input)
+    expect(presenter).toBeInstanceOf(UserPresenter)
+    expect(presenter).toStrictEqual(new UserPresenter(output))
     expect(mockSigninUseCase.execute).toHaveBeenCalledWith(input)
   })
 
@@ -73,8 +72,9 @@ describe('UsersController unit tests', () => {
     const input: UpdateUserDto = {
       name: 'new name',
     }
-    const result = await sut.update(id, input)
-    expect(output).toMatchObject(result)
+    const presenter = await sut.update(id, input)
+    expect(presenter).toBeInstanceOf(UserPresenter)
+    expect(presenter).toStrictEqual(new UserPresenter(output))
     expect(mockUpdateUserUseCase.execute).toHaveBeenCalledWith({ id, ...input })
   })
 
@@ -88,14 +88,14 @@ describe('UsersController unit tests', () => {
       password: 'new password',
       oldPassword: 'old password',
     }
-    const result = await sut.updatePassword(id, input)
-    expect(output).toMatchObject(result)
+    const presenter = await sut.updatePassword(id, input)
+    expect(presenter).toBeInstanceOf(UserPresenter)
+    expect(presenter).toStrictEqual(new UserPresenter(output))
     expect(mockUpdatePasswordUseCase.execute).toHaveBeenCalledWith({
       id,
       ...input,
     })
   })
-
   it('should delete a user', async () => {
     const output = undefined
     const mockDeleteUserUseCase = {
@@ -108,20 +108,19 @@ describe('UsersController unit tests', () => {
       id,
     })
   })
-
   it('should gets a user', async () => {
     const output: GetUserUseCase.Output = props
     const mockGetUserUseCase = {
       execute: jest.fn().mockReturnValue(Promise.resolve(output)),
     }
     sut['getUserUseCase'] = mockGetUserUseCase as any
-    const result = await sut.findOne(id)
-    expect(output).toStrictEqual(result)
+    const presenter = await sut.findOne(id)
+    expect(presenter).toBeInstanceOf(UserPresenter)
+    expect(presenter).toStrictEqual(new UserPresenter(output))
     expect(mockGetUserUseCase.execute).toHaveBeenCalledWith({
       id,
     })
   })
-
   it('should list users', async () => {
     const output: ListUsersUseCase.Output = {
       items: [props],
