@@ -103,6 +103,7 @@ export class UsersController {
           return UsersController.userToResponse(output)
     }
 
+    @HttpCode(204)
     @Delete(':id')
     async remove(@Param('id') id: string) {
         await this.deleteUserUseCase.execute({ id })
