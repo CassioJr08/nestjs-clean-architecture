@@ -13,6 +13,8 @@ import { applyGlobalConfig } from '@/global-config'
 import { UserEntity } from '@/users/domain/entities/user.entity'
 import { UserDataBuilder } from '@/users/domain/testing/helpers/user-data-builder'
 import { UpdateUserDto } from '../../dtos/update-user.dto'
+import { HashProvider } from '../../providers/hash-provider'
+import { BcryptjsHashProvider } from '../../providers/hash-provider/bcryptjs-hash.provider'
 
 describe('UsersController unit tests', () => {
   let app: INestApplication
@@ -21,6 +23,9 @@ describe('UsersController unit tests', () => {
   let updateUserDto: UpdateUserDto
   const prismaService = new PrismaClient()
   let entity: UserEntity
+  let hashProvider: HashProvider
+  let hashPassword: string
+  let accessToken: string
 
   beforeAll(async () => {
     setupPrismaTests()
@@ -35,6 +40,8 @@ describe('UsersController unit tests', () => {
     applyGlobalConfig(app)
     await app.init()
     repository = module.get<UserRepository.Repository>('UserRepository')
+    hashProvider = new BcryptjsHashProvider()
+    hashPassword = await hashProvider.generateHash('1234')
   })
 
   beforeEach(async () => {
@@ -42,8 +49,18 @@ describe('UsersController unit tests', () => {
       name: 'test name',
     }
     await prismaService.user.deleteMany()
-    entity = new UserEntity(UserDataBuilder({}))
+    entity = new UserEntity(
+        UserDataBuilder({
+          email: 'a@a.com',
+          password: hashPassword,
+        }),
+      )
     await repository.insert(entity)
+    const loginResponse = await request(app.getHttpServer())
+    .post('/users/login')
+    .send({ email: 'a@a.com', password: '1234' })
+    .expect(200)
+  accessToken = loginResponse.body.accessToken
   })
 
   describe('PUT /users/:id', () => {
@@ -51,6 +68,7 @@ describe('UsersController unit tests', () => {
       updateUserDto.name = 'test name'
       const res = await request(app.getHttpServer())
         .put(`/users/${entity._id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
         .send(updateUserDto)
         .expect(200)
       const user = await repository.findById(entity._id)
@@ -62,6 +80,7 @@ describe('UsersController unit tests', () => {
     it('should return a error with 422 code when the request body is invalid', async () => {
       const res = await request(app.getHttpServer())
         .put(`/users/${entity._id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
         .send({})
         .expect(422)
       expect(res.body.error).toBe('Unprocessable Entity')
@@ -74,6 +93,7 @@ describe('UsersController unit tests', () => {
     it('should return a error with 404 code when throw NotFoundError with invalid id', async () => {
         const res = await request(app.getHttpServer())
           .put('/users/fakeId')
+          .set('Authorization', `Bearer ${accessToken}`)
           .send(updateUserDto)
           .expect(404)
           .expect({
@@ -83,54 +103,14 @@ describe('UsersController unit tests', () => {
           })
       })
 
-    // it('should return a error with 422 code when the email field is invalid', async () => {
-    //   delete signupDto.email
-    //   const res = await request(app.getHttpServer())
-    //     .post('/users')
-    //     .send(signupDto)
-    //     .expect(422)
-    //   expect(res.body.error).toBe('Unprocessable Entity')
-    //   expect(res.body.message).toEqual([
-    //     'email must be an email',
-    //     'email should not be empty',
-    //     'email must be a string',
-    //   ])
-    // })
-
-    // it('should return a error with 422 code when the password field is invalid', async () => {
-    //   delete signupDto.password
-    //   const res = await request(app.getHttpServer())
-    //     .post('/users')
-    //     .send(signupDto)
-    //     .expect(422)
-    //   expect(res.body.error).toBe('Unprocessable Entity')
-    //   expect(res.body.message).toEqual([
-    //     'password should not be empty',
-    //     'password must be a string',
-    //   ])
-    // })
-
-    // it('should return a error with 422 code with invalid field provided', async () => {
-    //   const res = await request(app.getHttpServer())
-    //     .post('/users')
-    //     .send(Object.assign(signupDto, { xpto: 'fake' }))
-    //     .expect(422)
-    //   expect(res.body.error).toBe('Unprocessable Entity')
-    //   expect(res.body.message).toEqual(['property xpto should not exist'])
-    // })
-
-    // it('should return a error with 409 code when the email is duplicated', async () => {
-    //   const entity = new UserEntity(UserDataBuilder({ ...signupDto }))
-    //   await repository.insert(entity)
-    //   const res = await request(app.getHttpServer())
-    //     .post('/users')
-    //     .send(signupDto)
-    //     .expect(409)
-    //     .expect({
-    //       statusCode: 409,
-    //       error: 'Conflict',
-    //       message: 'Email address already used',
-    //     })
-    // })
+      it('should return a error with 401 code when the request is not authorized', async () => {
+        const res = await request(app.getHttpServer())
+          .put('/users/fakeId')
+          .expect(401)
+          .expect({
+            statusCode: 401,
+            message: 'Unauthorized',
+          })
+      })
   })
 })
